@@ -8,7 +8,6 @@ __pycache__/
 # local environment
 .env
 
-# editor / assistant tooling
-.claude/
+# editor settings
 .vscode/
 .idea/
