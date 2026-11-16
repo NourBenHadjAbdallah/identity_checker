@@ -1,0 +1,182 @@
+{
+  "realm": "university",
+  "enabled": true,
+  "sslRequired": "none",
+  "eventsEnabled": true,
+  "eventsExpiration": 86400,
+  "eventsListeners": [
+    "jboss-logging"
+  ],
+  "enabledEventTypes": [
+    "LOGIN",
+    "LOGIN_ERROR",
+    "LOGOUT",
+    "UPDATE_PASSWORD",
+    "UPDATE_TOTP"
+  ],
+  "adminEventsEnabled": false,
+  "bruteForceProtected": false,
+  "groups": [
+    {
+      "name": "Privileged"
+    }
+  ],
+  "clients": [
+    {
+      "clientId": "demo-app",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Alice",
+      "lastName": "Martin",
+      "email": "alice@univ.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Str0ng-Pass#alice",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "bob",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Bob",
+      "lastName": "Haddad",
+      "email": "bob@univ.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Str0ng-Pass#bob",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "carol",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Carol",
+      "lastName": "Ben Ali",
+      "email": "carol@univ.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Str0ng-Pass#carol",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "dave",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Dave",
+      "lastName": "Trabelsi",
+      "email": "dave@univ.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Welcome1!",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "erin",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Erin",
+      "lastName": "Gharbi",
+      "email": "erin@univ.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Str0ng-Pass#erin",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "frank",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Frank",
+      "lastName": "Mansour",
+      "email": "frank@univ.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Str0ng-Pass#frank",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "grace",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Grace",
+      "lastName": "Jaziri",
+      "email": "grace@univ.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Str0ng-Pass#grace",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "prof.ben",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ben",
+      "lastName": "Salah",
+      "email": "prof.ben@univ.test",
+      "groups": [
+        "/Privileged"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Str0ng-Pass#prof.ben",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "registrar",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Rita",
+      "lastName": "Gontara",
+      "email": "registrar@univ.test",
+      "groups": [
+        "/Privileged"
+      ],
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Str0ng-Pass#registrar",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

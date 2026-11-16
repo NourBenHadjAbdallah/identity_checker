@@ -1,0 +1,79 @@
+name: identity-soar
+
+x-soc: &soc
+  build: ./soc
+  environment: &socenv
+    KC_URL: http://keycloak:8080
+    KC_ADMIN: admin
+    KC_ADMIN_PASSWORD: admin
+    N8N_BASE: http://n8n:5678
+    SMTP_HOST: mailpit
+    SOC_PUBLIC_URL: http://localhost:8000
+    SIGNING_SECRET: change-me-lab-secret
+    CHALLENGE_TTL: ${CHALLENGE_TTL:-120}     # seconds the user has to answer
+    ANALYST_TTL: ${ANALYST_TTL:-180}         # seconds the analyst has to decide
+    ABUSEIPDB_KEY: ${ABUSEIPDB_KEY:-}        # optional, can stay empty
+
+services:
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HTTP_ENABLED: "true"
+      KC_PROXY_HEADERS: xforwarded      # lets the simulator choose the client IP (X-Forwarded-For)
+    volumes:
+      - ./keycloak/realm-university.json:/opt/keycloak/data/import/realm-university.json:ro
+      - kc_data:/opt/keycloak/data
+    ports: ["8080:8080"]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["8025:8025"]   # web UI = the users' mailboxes
+
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:1.70.3
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - >
+        n8n import:workflow --separate --input=/workflows;
+        n8n update:workflow --all --active=true;
+        exec n8n start
+    environment:
+      N8N_SECURE_COOKIE: "false"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+      GENERIC_TIMEZONE: Africa/Tunis
+      WEBHOOK_URL: http://n8n:5678/
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./n8n/workflows:/workflows:ro
+    ports: ["5678:5678"]
+
+  soc-api:
+    <<: *soc
+    command: uvicorn api:app --host 0.0.0.0 --port 8000
+    volumes: [soc_data:/data]
+    ports: ["8000:8000"]
+    depends_on: [keycloak, n8n, mailpit]
+
+  detector:
+    <<: *soc
+    command: python detector.py
+    volumes: [soc_data:/data]
+    depends_on: [keycloak, n8n]
+
+  sim:   # attack / traffic simulators, run on demand (see README)
+    <<: *soc
+    profiles: ["tools"]
+    entrypoint: ["python"]
+    command: ["simulate.py", "all"]
+    environment:
+      <<: *socenv
+      SOC_API_URL: http://soc-api:8000
+      MAILPIT_URL: http://mailpit:8025
+
+volumes:
+  kc_data:
+  n8n_data:
+  soc_data:

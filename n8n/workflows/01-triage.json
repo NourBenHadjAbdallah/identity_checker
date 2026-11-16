@@ -1,0 +1,194 @@
+{
+  "id": "idrTriage0000001",
+  "name": "01 - Identity alert triage",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "ab7ef1e2-cc85-5951-b6ac-03c04a511280",
+      "name": "Alert webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "idr-alert",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "c5136dba-0c37-52bf-a601-9f4227d94fb2"
+    },
+    {
+      "id": "aa767a40-cdb7-56bc-8633-7aa6b6afcefc",
+      "name": "Score risk",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// RISK SCORING - every point is explained in `reasons`\nconst a = $input.first().json.body;\nconst base = { brute_force: 35, spraying: 25, impossible_travel: 45, success_after_failures: 60 };\nlet score = base[a.type] ?? 30;\nconst reasons = [`base(${a.type})=${score}`];\nconst add = (n, why) => { score += n; reasons.push(`${why}=+${n}`); };\nif (a.privileged) add(30, 'privileged account');\nif (a.new_ip) add(15, 'IP never seen for this user');\nconst h = new Date((a.event_time || Date.now() / 1000) * 1000).getUTCHours();\nif (h < 5) add(5, 'off-hours (00-05 UTC)');\nif ((a.count || 0) >= 20) add(10, 'high attempt count');\nif ((a.abuse_score || 0) >= 50) add(20, 'IP reputation (AbuseIPDB)');\nscore = Math.min(score, 100);\nconst level = score >= 70 ? 'high' : score >= 30 ? 'medium' : 'low';\n// proportional response matrix\nlet decision = level === 'low' ? 'log_only' : level === 'medium' ? 'ask_user' : 'analyst';\nif (a.privileged) decision = 'analyst';                       // privileged accounts: ALWAYS a human\nif (a.type === 'spraying') decision = score >= 70 ? 'analyst' : 'log_only'; // IP-level, no single victim\nif (decision === 'ask_user' && !a.email) decision = 'analyst'; // cannot ask someone with no mailbox\nreturn [{ json: { ...a, score, level, decision, reasons } }];\n"
+      }
+    },
+    {
+      "id": "d0946953-6ca7-5905-ac69-17c39b2b7812",
+      "name": "Ask user?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.decision }}",
+              "operation": "equal",
+              "value2": "ask_user"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "bda0bed8-af01-5f02-9801-96a9d6b637e5",
+      "name": "Challenge user (email)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        740,
+        160
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://soc-api:8000/api/challenge",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "707cbdd5-3046-533e-bf22-0acf86031bc0",
+      "name": "Analyst?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        740,
+        440
+      ],
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.decision }}",
+              "operation": "equal",
+              "value2": "analyst"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "5283784e-00a2-5d8e-aa96-0a0d90809b18",
+      "name": "Open analyst case",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        340
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://soc-api:8000/api/case",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "fbb7359f-5729-5cc6-8328-282528f9c3df",
+      "name": "Log only",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        540
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://soc-api:8000/api/log",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Alert webhook": {
+      "main": [
+        [
+          {
+            "node": "Score risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Score risk": {
+      "main": [
+        [
+          {
+            "node": "Ask user?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ask user?": {
+      "main": [
+        [
+          {
+            "node": "Challenge user (email)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Analyst?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyst?": {
+      "main": [
+        [
+          {
+            "node": "Open analyst case",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,141 @@
+{
+  "id": "idrDecision000002",
+  "name": "02 - Decision, response and verification",
+  "active": false,
+  "settings": {},
+  "nodes": [
+    {
+      "id": "31a5bb33-3a2b-576d-adbf-78a01e5996aa",
+      "name": "Decision webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "idr-decision",
+        "responseMode": "onReceived",
+        "options": {}
+      },
+      "webhookId": "0e9a0f04-6284-5837-9bc0-d421746986bc"
+    },
+    {
+      "id": "3762996b-cff3-5e8b-aa14-973d79eb74c6",
+      "name": "Decide action",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// WHO ANSWERED -> WHICH ACTION. 'lock' is only ever reachable through an analyst.\nconst b = $input.first().json.body;\nlet action, reason;\nif (b.source === 'user') {\n  if (b.answer === 'confirmed') { action = 'close'; reason = 'user confirmed the activity'; }\n  else if (b.answer === 'denied') { action = 'hard'; reason = 'user denied: close sessions + force password reset + MFA'; }\n  else { action = 'soft'; reason = 'no answer before expiry: close sessions only (reversible, account stays enabled)'; }\n} else {\n  if (b.decision === 'approve_lock') { action = 'lock'; reason = 'analyst approved account lock'; }\n  else if (b.decision === 'approve_hard') { action = 'hard'; reason = 'analyst approved reset + MFA'; }\n  else if (b.decision === 'dismiss') { action = 'close'; reason = 'analyst dismissed the alert'; }\n  else { action = 'soft'; reason = 'analyst did not answer in time: soft containment only, never an automatic lock'; }\n}\nreturn [{ json: { alert_id: b.alert_id, action, reason, source: b.source } }];\n"
+      }
+    },
+    {
+      "id": "458b1780-71e5-5a0b-b994-ebfdc13f0c9a",
+      "name": "Execute response + verify",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        480,
+        300
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://soc-api:8000/api/respond",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    },
+    {
+      "id": "7abd5d00-90ab-580e-b4b6-0b2b246c611e",
+      "name": "Verified?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        740,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.verified }}",
+              "value2": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "ab86de0f-0274-5e6f-abaf-e6025c70c7f6",
+      "name": "Escalate: verification failed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1000,
+        420
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "http://soc-api:8000/api/timeline",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ alert_id: $json.alert_id, event: \"verification_failed\", detail: JSON.stringify($json) }) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Decision webhook": {
+      "main": [
+        [
+          {
+            "node": "Decide action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decide action": {
+      "main": [
+        [
+          {
+            "node": "Execute response + verify",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute response + verify": {
+      "main": [
+        [
+          {
+            "node": "Verified?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verified?": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Escalate: verification failed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

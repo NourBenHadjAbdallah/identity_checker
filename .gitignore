@@ -1,0 +1,14 @@
+# runtime logs
+*.log
+
+# python
+__pycache__/
+*.pyc
+
+# local environment
+.env
+
+# editor / assistant tooling
+.claude/
+.vscode/
+.idea/
